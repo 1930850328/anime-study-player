@@ -44,6 +44,7 @@ export interface AnimeStudyPlayerProps {
   segments: StudyTranscriptSegment[]
   knowledgePoints: StudyKnowledgePoint[]
   showRomaji?: boolean
+  showSubtitleReading?: boolean
   autoplay?: boolean
   themeColor?: string
   className?: string

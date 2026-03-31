@@ -142,7 +142,7 @@ function createSnapshot(elapsedMs, absoluteMs, durationMs, isReady, isPlaying, i
         activePoints: getActivePoints(knowledgePoints, currentSegment),
     };
 }
-export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, poster, title, sourceLabel, durationMs, clipStartMs = 0, clipEndMs, segments, knowledgePoints, showRomaji = true, autoplay = true, themeColor = '#ffc8af', className, onFinish, onError, onReady, onStateChange, }, ref) {
+export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, poster, title, sourceLabel, durationMs, clipStartMs = 0, clipEndMs, segments, knowledgePoints, showRomaji = true, showSubtitleReading = false, autoplay = true, themeColor = '#ffc8af', className, onFinish, onError, onReady, onStateChange, }, ref) {
     const hostRef = useRef(null);
     const artRef = useRef(null);
     const finishedRef = useRef(false);
@@ -467,7 +467,7 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             ? `${snapshot.currentSegment.kana} / ${snapshot.currentSegment.romaji}`
             : snapshot.currentSegment.kana
         : '';
-    return (_jsxs("div", { className: className ? `asp-shell ${className}` : 'asp-shell', style: shellStyle, children: [_jsxs("div", { className: "asp-stage", children: [_jsx("div", { ref: hostRef }), subtitleVisible && snapshot.currentSegment ? (_jsxs("div", { className: "asp-subtitle-card", children: [_jsxs("span", { className: "asp-subtitle-label", children: [title || 'Study Clip', sourceLabel ? ` / ${sourceLabel}` : ''] }), _jsx("strong", { className: "asp-subtitle-ja", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) }), _jsx("span", { className: "asp-subtitle-meta", children: overlayText }), _jsx("span", { className: "asp-subtitle-zh", children: snapshot.currentSegment.zh })] })) : null, playerError ? (_jsxs("div", { className: "asp-error-card", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null, !playerError && !snapshot.isPlaying ? (_jsx("button", { type: "button", className: "asp-overlay-button", onClick: () => {
+    return (_jsxs("div", { className: className ? `asp-shell ${className}` : 'asp-shell', style: shellStyle, children: [_jsxs("div", { className: "asp-stage", children: [_jsx("div", { ref: hostRef }), subtitleVisible && snapshot.currentSegment ? (_jsxs("div", { className: "asp-subtitle-card", children: [_jsxs("span", { className: "asp-subtitle-label", children: [title || 'Study Clip', sourceLabel ? ` / ${sourceLabel}` : ''] }), _jsx("strong", { className: "asp-subtitle-ja", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) }), showSubtitleReading && overlayText ? (_jsx("span", { className: "asp-subtitle-meta", children: overlayText })) : null, _jsx("span", { className: "asp-subtitle-zh", children: snapshot.currentSegment.zh })] })) : null, playerError ? (_jsxs("div", { className: "asp-error-card", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null, !playerError && !snapshot.isPlaying ? (_jsx("button", { type: "button", className: "asp-overlay-button", onClick: () => {
                             if (artRef.current?.video.paused) {
                                 void artRef.current.play();
                             }

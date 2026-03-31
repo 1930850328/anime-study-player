@@ -218,6 +218,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
       segments,
       knowledgePoints,
       showRomaji = true,
+      showSubtitleReading = false,
       autoplay = true,
       themeColor = '#ffc8af',
       className,
@@ -634,7 +635,9 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
               <strong className="asp-subtitle-ja">
                 {renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints)}
               </strong>
-              <span className="asp-subtitle-meta">{overlayText}</span>
+              {showSubtitleReading && overlayText ? (
+                <span className="asp-subtitle-meta">{overlayText}</span>
+              ) : null}
               <span className="asp-subtitle-zh">{snapshot.currentSegment.zh}</span>
             </div>
           ) : null}
