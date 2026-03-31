@@ -142,6 +142,38 @@ function formatClock(valueMs) {
     const seconds = totalSeconds % 60;
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
+function hasReadableChineseLine(text) {
+    const normalized = text.trim();
+    if (!normalized || normalized.includes('暂未收录')) {
+        return false;
+    }
+    const chineseCharCount = (normalized.match(/[\u4e00-\u9fff]/g) || []).length;
+    const slashCount = (normalized.match(/\//g) || []).length;
+    return chineseCharCount >= 4 && !(slashCount > 0 && normalized.length < 18);
+}
+function buildSubtitleZhFallback(segment, points) {
+    if (!segment) {
+        return '';
+    }
+    const grammarHints = points
+        .filter((point) => point.kind === 'grammar')
+        .slice(0, 1)
+        .map((point) => `${point.expression} 表示${point.meaningZh}`);
+    const wordHints = points
+        .filter((point) => point.kind !== 'grammar')
+        .slice(0, 2)
+        .map((point) => `${point.expression} = ${point.meaningZh}`);
+    if (wordHints.length > 0 && grammarHints.length > 0) {
+        return `这句围绕 ${wordHints.join('，')} 展开，句里 ${grammarHints[0]}。`;
+    }
+    if (wordHints.length > 0) {
+        return `这句可以先抓住 ${wordHints.join('，')}。`;
+    }
+    if (grammarHints.length > 0) {
+        return `这句里 ${grammarHints[0]}。`;
+    }
+    return `先结合原句「${segment.ja.slice(0, 18)}${segment.ja.length > 18 ? '…' : ''}」来理解这句。`;
+}
 function createSnapshot(elapsedMs, absoluteMs, durationMs, isReady, isPlaying, isBuffering, isAutoplayBlocked, volume, segments, knowledgePoints) {
     const currentSegment = getCurrentSegment(segments, elapsedMs);
     return {
@@ -220,6 +252,7 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 width: '100%',
                 height: '100%',
                 fluid: true,
+                loop: false,
                 autoplay: false,
                 autoplayMuted: false,
                 volume: snapshotRef.current.volume,
@@ -345,8 +378,9 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             const handleTimeUpdate = () => {
                 markRenderedFrame();
                 const absoluteMs = Math.round(player.currentTime * 1000);
-                if (absoluteMs >= effectiveClipEndMs) {
+                if (absoluteMs >= effectiveClipEndMs - 120) {
                     player.pause();
+                    player.currentTime = effectiveClipEndMs / 1000;
                     const finalState = emitSnapshot({
                         elapsedMs: durationMs,
                         absoluteMs: effectiveClipEndMs,
@@ -361,6 +395,21 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                     return;
                 }
                 emitSnapshot();
+            };
+            const handleEnded = () => {
+                player.pause();
+                player.currentTime = effectiveClipEndMs / 1000;
+                const finalState = emitSnapshot({
+                    elapsedMs: durationMs,
+                    absoluteMs: effectiveClipEndMs,
+                    isPlaying: false,
+                    isBuffering: false,
+                });
+                if (!finishedRef.current) {
+                    finishedRef.current = true;
+                    onStateChangeRef.current?.(finalState);
+                    onFinishRef.current?.();
+                }
             };
             const handleSeeked = () => {
                 const absoluteMs = Math.round(player.currentTime * 1000);
@@ -417,6 +466,7 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             media.addEventListener('seeked', handleSeeked);
             media.addEventListener('timeupdate', handleTimeUpdate);
             media.addEventListener('timeupdate', missingPictureGuard);
+            media.addEventListener('ended', handleEnded);
             media.addEventListener('volumechange', volumeChange);
             media.addEventListener('error', handlePlayerError);
             cleanupMediaListeners = () => {
@@ -432,6 +482,7 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 media.removeEventListener('seeked', handleSeeked);
                 media.removeEventListener('timeupdate', handleTimeUpdate);
                 media.removeEventListener('timeupdate', missingPictureGuard);
+                media.removeEventListener('ended', handleEnded);
                 media.removeEventListener('volumechange', volumeChange);
                 media.removeEventListener('error', handlePlayerError);
             };
@@ -512,6 +563,9 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             : snapshot.currentSegment.kana
         : '';
     const subtitleScaleLabel = getSubtitleScaleLabel(subtitleScale);
+    const subtitleZhText = snapshot.currentSegment && hasReadableChineseLine(snapshot.currentSegment.zh)
+        ? snapshot.currentSegment.zh
+        : buildSubtitleZhFallback(snapshot.currentSegment, snapshot.activePoints);
     return (_jsxs("div", { className: className ? `asp-shell ${className}` : 'asp-shell', style: shellStyle, children: [_jsxs("div", { className: "asp-stage", children: [_jsx("div", { ref: hostRef, className: "asp-host" }), _jsxs("div", { className: "asp-floatingTools", children: [_jsx("button", { type: "button", className: "asp-toolButton", onClick: () => {
                                     const next = !subtitleVisibleRef.current;
                                     subtitleVisibleRef.current = next;
@@ -522,6 +576,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                                     const nextValue = SUBTITLE_SCALE_OPTIONS[nextIndex].value;
                                     subtitleScaleRef.current = nextValue;
                                     setSubtitleScale(nextValue);
-                                }, children: _jsxs("strong", { children: ["\u5B57\u5E55\u5927\u5C0F ", subtitleScaleLabel] }) })] }), subtitleVisible && snapshot.currentSegment ? (_jsxs("div", { className: "asp-subtitleCard", children: [_jsxs("span", { className: "asp-subtitleLabel", children: [title || 'Study Clip', sourceLabel ? ` / ${sourceLabel}` : ''] }), _jsx("strong", { className: "asp-subtitleJa", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) }), showSubtitleReading && overlayText ? (_jsx("span", { className: "asp-subtitleMeta", children: overlayText })) : null, _jsx("span", { className: "asp-subtitleZh", children: snapshot.currentSegment.zh })] })) : null, playerError ? (_jsxs("div", { className: "asp-errorCard", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null] }), _jsxs("div", { className: "asp-hud", children: [_jsxs("span", { children: [sourceLabel || '本地原片', " / ", snapshot.isPlaying ? '播放中' : snapshot.isBuffering ? '缓冲中' : '已暂停'] }), _jsxs("strong", { children: [formatClock(snapshot.elapsedMs), " / ", formatClock(durationMs)] })] })] }));
+                                }, children: _jsxs("strong", { children: ["\u5B57\u5E55\u5927\u5C0F ", subtitleScaleLabel] }) })] }), subtitleVisible && snapshot.currentSegment ? (_jsxs("div", { className: "asp-subtitleCard", children: [_jsxs("span", { className: "asp-subtitleLabel", children: [title || 'Study Clip', sourceLabel ? ` / ${sourceLabel}` : ''] }), _jsx("strong", { className: "asp-subtitleJa", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) }), showSubtitleReading && overlayText ? (_jsx("span", { className: "asp-subtitleMeta", children: overlayText })) : null, subtitleZhText ? _jsx("span", { className: "asp-subtitleZh", children: subtitleZhText }) : null] })) : null, playerError ? (_jsxs("div", { className: "asp-errorCard", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null] }), _jsxs("div", { className: "asp-hud", children: [_jsxs("span", { children: [sourceLabel || '本地原片', " / ", snapshot.isPlaying ? '播放中' : snapshot.isBuffering ? '缓冲中' : '已暂停'] }), _jsxs("strong", { children: [formatClock(snapshot.elapsedMs), " / ", formatClock(durationMs)] })] })] }));
 });
 //# sourceMappingURL=AnimeStudyPlayer.js.map

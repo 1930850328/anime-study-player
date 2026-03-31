@@ -194,6 +194,49 @@ function formatClock(valueMs: number) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
+function hasReadableChineseLine(text: string) {
+  const normalized = text.trim()
+  if (!normalized || normalized.includes('暂未收录')) {
+    return false
+  }
+
+  const chineseCharCount = (normalized.match(/[\u4e00-\u9fff]/g) || []).length
+  const slashCount = (normalized.match(/\//g) || []).length
+  return chineseCharCount >= 4 && !(slashCount > 0 && normalized.length < 18)
+}
+
+function buildSubtitleZhFallback(
+  segment: StudyTranscriptSegment | undefined,
+  points: StudyKnowledgePoint[],
+) {
+  if (!segment) {
+    return ''
+  }
+
+  const grammarHints = points
+    .filter((point) => point.kind === 'grammar')
+    .slice(0, 1)
+    .map((point) => `${point.expression} 表示${point.meaningZh}`)
+  const wordHints = points
+    .filter((point) => point.kind !== 'grammar')
+    .slice(0, 2)
+    .map((point) => `${point.expression} = ${point.meaningZh}`)
+
+  if (wordHints.length > 0 && grammarHints.length > 0) {
+    return `这句围绕 ${wordHints.join('，')} 展开，句里 ${grammarHints[0]}。`
+  }
+
+  if (wordHints.length > 0) {
+    return `这句可以先抓住 ${wordHints.join('，')}。`
+  }
+
+  if (grammarHints.length > 0) {
+    return `这句里 ${grammarHints[0]}。`
+  }
+
+  return `先结合原句「${segment.ja.slice(0, 18)}${segment.ja.length > 18 ? '…' : ''}」来理解这句。`
+}
+
 function createSnapshot(
   elapsedMs: number,
   absoluteMs: number,
@@ -338,6 +381,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
           width: '100%',
           height: '100%',
           fluid: true,
+          loop: false,
           autoplay: false,
           autoplayMuted: false,
           volume: snapshotRef.current.volume,
@@ -492,8 +536,9 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
         const handleTimeUpdate = () => {
           markRenderedFrame()
           const absoluteMs = Math.round(player.currentTime * 1000)
-          if (absoluteMs >= effectiveClipEndMs) {
+          if (absoluteMs >= effectiveClipEndMs - 120) {
             player.pause()
+            player.currentTime = effectiveClipEndMs / 1000
             const finalState = emitSnapshot({
               elapsedMs: durationMs,
               absoluteMs: effectiveClipEndMs,
@@ -510,6 +555,23 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
           }
 
           emitSnapshot()
+        }
+
+        const handleEnded = () => {
+          player.pause()
+          player.currentTime = effectiveClipEndMs / 1000
+          const finalState = emitSnapshot({
+            elapsedMs: durationMs,
+            absoluteMs: effectiveClipEndMs,
+            isPlaying: false,
+            isBuffering: false,
+          })
+
+          if (!finishedRef.current) {
+            finishedRef.current = true
+            onStateChangeRef.current?.(finalState)
+            onFinishRef.current?.()
+          }
         }
 
         const handleSeeked = () => {
@@ -578,6 +640,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
         media.addEventListener('seeked', handleSeeked)
         media.addEventListener('timeupdate', handleTimeUpdate)
         media.addEventListener('timeupdate', missingPictureGuard)
+        media.addEventListener('ended', handleEnded)
         media.addEventListener('volumechange', volumeChange)
         media.addEventListener('error', handlePlayerError)
 
@@ -594,6 +657,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
           media.removeEventListener('seeked', handleSeeked)
           media.removeEventListener('timeupdate', handleTimeUpdate)
           media.removeEventListener('timeupdate', missingPictureGuard)
+          media.removeEventListener('ended', handleEnded)
           media.removeEventListener('volumechange', volumeChange)
           media.removeEventListener('error', handlePlayerError)
         }
@@ -688,6 +752,10 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
       : ''
 
     const subtitleScaleLabel = getSubtitleScaleLabel(subtitleScale)
+    const subtitleZhText =
+      snapshot.currentSegment && hasReadableChineseLine(snapshot.currentSegment.zh)
+        ? snapshot.currentSegment.zh
+        : buildSubtitleZhFallback(snapshot.currentSegment, snapshot.activePoints)
 
     return (
       <div className={className ? `asp-shell ${className}` : 'asp-shell'} style={shellStyle}>
@@ -736,7 +804,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
               {showSubtitleReading && overlayText ? (
                 <span className="asp-subtitleMeta">{overlayText}</span>
               ) : null}
-              <span className="asp-subtitleZh">{snapshot.currentSegment.zh}</span>
+              {subtitleZhText ? <span className="asp-subtitleZh">{subtitleZhText}</span> : null}
             </div>
           ) : null}
 
