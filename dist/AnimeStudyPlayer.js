@@ -1,4 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import 'xgplayer/dist/index.min.css';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, } from 'react';
 const STYLE_ID = 'anime-study-player-style';
 const SUBTITLE_SCALE_OPTIONS = [
@@ -9,38 +10,49 @@ const SUBTITLE_SCALE_OPTIONS = [
 ];
 const styleText = `
 .asp-shell{--asp-subtitle-scale:1;position:relative;width:100%;display:grid;gap:12px}
-.asp-stage{position:relative;width:100%;aspect-ratio:16/9;min-height:240px;max-height:min(64svh,680px);overflow:hidden;border-radius:28px;background:#130d0b;box-shadow:0 20px 40px rgba(20,12,10,.18)}
-.asp-host{position:absolute;inset:0;width:100%;height:100%}
-.asp-stage .art-video-player{width:100%;height:100%}
-.asp-stage .art-video,.asp-stage video{width:100%;height:100%;object-fit:contain;background:#000}
-.asp-stage .art-bottom{z-index:12}
-.asp-stage .art-settings{z-index:14}
-.asp-poster-fallback{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;background:#130d0b;pointer-events:none;transition:opacity .18s ease}
-.asp-poster-hidden{opacity:0}
-.asp-subtitle-card{position:absolute;left:14px;right:14px;bottom:76px;z-index:11;max-width:min(88%,820px);margin-inline:auto;padding:12px 14px;border-radius:22px;background:rgba(14,9,8,.42);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);box-shadow:0 16px 28px rgba(18,12,10,.24);pointer-events:none}
-.asp-subtitle-label{display:inline-flex;margin-bottom:6px;padding:4px 10px;border-radius:999px;color:rgba(255,248,243,.86);background:rgba(255,255,255,.12);font-size:12px}
-.asp-subtitle-ja{display:block;color:#fffaf6;font-size:calc(clamp(1.04rem,1.6vw,1.32rem) * var(--asp-subtitle-scale));line-height:1.5;font-weight:700}
-.asp-subtitle-meta,.asp-subtitle-zh{display:block;margin-top:4px;color:rgba(255,246,241,.84);line-height:1.55;font-size:calc(.9rem * var(--asp-subtitle-scale))}
-.asp-mark-word,.asp-mark-grammar{padding:.06em .22em;border-radius:.4em;color:#442f28}
-.asp-mark-word{background:linear-gradient(120deg,rgba(255,215,176,.98),rgba(255,237,191,.98))}
-.asp-mark-grammar{background:linear-gradient(120deg,rgba(205,234,221,.98),rgba(181,224,237,.98))}
-.asp-overlay-button,.asp-status{position:absolute;left:50%;top:50%;z-index:10;transform:translate(-50%,-50%)}
-.asp-overlay-button{display:inline-flex;align-items:center;gap:10px;padding:14px 20px;border-radius:999px;color:#fffaf6;background:rgba(20,13,11,.72);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.26);cursor:pointer}
-.asp-status{padding:10px 14px;border-radius:999px;color:#fffaf6;background:rgba(20,13,11,.62);backdrop-filter:blur(14px);pointer-events:none}
-.asp-error-card{position:absolute;left:50%;top:50%;z-index:15;display:grid;gap:8px;width:min(82%,440px);padding:16px 18px;border-radius:22px;color:#fffaf6;background:rgba(22,14,12,.84);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(18px);transform:translate(-50%,-50%)}
-.asp-error-card strong{font-size:1rem}
-.asp-error-card span{color:rgba(255,246,241,.82);line-height:1.6}
+.asp-stage{position:relative;width:100%;aspect-ratio:16/9;min-height:240px;max-height:min(68svh,720px);overflow:hidden;border-radius:28px;background:#130d0b;box-shadow:0 24px 48px rgba(20,12,10,.18)}
+.asp-host{position:absolute;inset:0}
+.asp-stage .xgplayer{width:100%;height:100%;background:#000;border-radius:inherit}
+.asp-stage .xgplayer video{object-fit:contain}
+.asp-stage .xgplayer .xgplayer-controls{height:54px;background-image:linear-gradient(180deg,rgba(10,7,6,0),rgba(10,7,6,.22),rgba(10,7,6,.76),rgba(10,7,6,.92));backdrop-filter:blur(18px)}
+.asp-stage .xgplayer .xg-inner-controls{height:46px;bottom:2px}
+.asp-stage .xgplayer .xgplayer-progress{height:24px}
+.asp-stage .xgplayer .xgplayer-progress-outer{height:4px;border-radius:999px}
+.asp-stage .xgplayer.xgplayer-pc .xgplayer-progress.active .xgplayer-progress-outer{height:8px;margin-bottom:2px}
+.asp-stage .xgplayer .xgplayer-progress-played,.asp-stage .xgplayer .xg-mini-progress-show xg-mini-progress-played,.asp-stage .xgplayer .xg-mini-progress xg-mini-progress-played{background:linear-gradient(90deg,#ffc3a3,#ffe3a6 55%,#cdebd8)!important}
+.asp-stage .xgplayer .xgplayer-progress-cache,.asp-stage .xgplayer .xg-mini-progress xg-mini-progress-cache{background:rgba(255,255,255,.32)!important}
+.asp-stage .xgplayer .xgplayer-progress-btn{background:rgba(255,200,174,.38);box-shadow:0 0 0 1px rgba(255,255,255,.16)}
+.asp-stage .xgplayer .xgplayer-progress-btn:before{background:#fffaf6}
+.asp-stage .xgplayer .xgplayer-time{color:#fffaf6;font-weight:600}
+.asp-stage .xgplayer .time-duration{color:rgba(255,250,246,.64)}
+.asp-stage .xgplayer xg-icon{color:#fffaf6;fill:#fffaf6}
+.asp-stage .xgplayer xg-icon:hover{opacity:.86}
+.asp-stage .xgplayer .xg-options-list{background:rgba(17,12,10,.88);border-radius:16px;backdrop-filter:blur(18px);padding:6px 0}
+.asp-stage .xgplayer .xg-options-list li{color:rgba(255,248,243,.88)}
+.asp-stage .xgplayer .xg-options-list li:hover,.asp-stage .xgplayer .xg-options-list li.selected{color:#ffd4bf}
+.asp-stage .xgplayer .xgplayer-slider{background:rgba(17,12,10,.82);border-radius:18px;backdrop-filter:blur(16px)}
+.asp-stage .xgplayer .xgplayer-drag{background:linear-gradient(180deg,#ffc3a3,#cdebd8)}
+.asp-floatingTools{position:absolute;top:14px;right:14px;z-index:18;display:flex;gap:10px;flex-wrap:wrap}
+.asp-toolButton{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;color:#fffaf6;background:rgba(17,12,10,.42);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(16px);cursor:pointer}
+.asp-toolButton strong{font-size:.92rem;font-weight:700}
+.asp-subtitleCard{position:absolute;left:14px;right:14px;bottom:82px;z-index:17;max-width:min(88%,860px);margin-inline:auto;padding:12px 14px;border-radius:22px;background:rgba(14,9,8,.46);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);box-shadow:0 16px 28px rgba(18,12,10,.24);pointer-events:none}
+.asp-subtitleLabel{display:inline-flex;margin-bottom:6px;padding:4px 10px;border-radius:999px;color:rgba(255,248,243,.86);background:rgba(255,255,255,.12);font-size:12px}
+.asp-subtitleJa{display:block;color:#fffaf6;font-size:calc(clamp(1.06rem,1.7vw,1.36rem) * var(--asp-subtitle-scale));line-height:1.55;font-weight:700}
+.asp-subtitleMeta,.asp-subtitleZh{display:block;margin-top:4px;color:rgba(255,246,241,.84);line-height:1.55;font-size:calc(.92rem * var(--asp-subtitle-scale))}
+.asp-markWord,.asp-markGrammar{padding:.06em .22em;border-radius:.4em;color:#442f28}
+.asp-markWord{background:linear-gradient(120deg,rgba(255,215,176,.98),rgba(255,237,191,.98))}
+.asp-markGrammar{background:linear-gradient(120deg,rgba(205,234,221,.98),rgba(181,224,237,.98))}
+.asp-errorCard{position:absolute;left:50%;top:50%;z-index:19;display:grid;gap:8px;width:min(82%,440px);padding:16px 18px;border-radius:22px;color:#fffaf6;background:rgba(22,14,12,.84);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(18px);transform:translate(-50%,-50%)}
+.asp-errorCard strong{font-size:1rem}
+.asp-errorCard span{color:rgba(255,246,241,.82);line-height:1.6}
 .asp-hud{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border-radius:18px;background:rgba(255,255,255,.82);border:1px solid rgba(238,223,213,.9);color:#7d6255}
 .asp-hud strong{color:#49342c;font-size:1rem}
-.asp-shell .art-bottom{backdrop-filter:blur(10px)}
-.asp-shell .art-control{color:#fffaf6}
-.asp-shell .art-progress{height:5px}
-.asp-shell .art-progress-loaded{background:rgba(255,255,255,.22)}
-.asp-shell .art-progress-played{background:linear-gradient(90deg,#ffc8af,#ffe4a8,#c8ead8)}
-.asp-shell .art-highlight span{background:#ffc8af}
+.asp-hud span{line-height:1.6}
 @media (max-width:720px){
   .asp-stage{min-height:220px;aspect-ratio:16/10;border-radius:24px}
-  .asp-subtitle-card{left:12px;right:12px;bottom:72px;padding:10px 12px;border-radius:20px;max-width:calc(100% - 24px)}
+  .asp-floatingTools{top:12px;right:12px;left:12px;justify-content:flex-end}
+  .asp-toolButton{padding:9px 12px}
+  .asp-subtitleCard{left:12px;right:12px;bottom:72px;padding:10px 12px;border-radius:20px;max-width:calc(100% - 24px)}
   .asp-hud{flex-direction:column;align-items:flex-start}
 }
 `;
@@ -116,7 +128,7 @@ function renderHighlightedText(text, points) {
         if (match.start > lastIndex) {
             nodes.push(text.slice(lastIndex, match.start));
         }
-        nodes.push(_jsx("mark", { className: match.point.kind === 'grammar' ? 'asp-mark-grammar' : 'asp-mark-word', children: text.slice(match.start, match.end) }, `${match.point.id}-${match.start}`));
+        nodes.push(_jsx("mark", { className: match.point.kind === 'grammar' ? 'asp-markGrammar' : 'asp-markWord', children: text.slice(match.start, match.end) }, `${match.point.id}-${match.start}`));
         lastIndex = match.end;
     }
     if (lastIndex < text.length) {
@@ -145,23 +157,25 @@ function createSnapshot(elapsedMs, absoluteMs, durationMs, isReady, isPlaying, i
         activePoints: getActivePoints(knowledgePoints, currentSegment),
     };
 }
+function getSubtitleScaleLabel(value) {
+    return SUBTITLE_SCALE_OPTIONS.find((option) => option.value === value)?.label ?? '标准';
+}
 export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, poster, title, sourceLabel, durationMs, clipStartMs = 0, clipEndMs, segments, knowledgePoints, showRomaji = true, showSubtitleReading = false, autoplay = true, themeColor = '#ffc8af', className, onFinish, onError, onReady, onStateChange, }, ref) {
     const hostRef = useRef(null);
-    const artRef = useRef(null);
+    const playerRef = useRef(null);
     const finishedRef = useRef(false);
     const subtitleVisibleRef = useRef(true);
     const subtitleScaleRef = useRef(1);
+    const renderedFrameRef = useRef(false);
     const snapshotRef = useRef(createSnapshot(0, clipStartMs, durationMs, false, false, true, false, 0.8, segments, knowledgePoints));
     const onFinishRef = useRef(onFinish);
     const onErrorRef = useRef(onError);
     const onReadyRef = useRef(onReady);
     const onStateChangeRef = useRef(onStateChange);
-    const hasRenderedFrameRef = useRef(false);
     const effectiveClipEndMs = clipEndMs ?? clipStartMs + durationMs;
     const [subtitleVisible, setSubtitleVisible] = useState(true);
     const [subtitleScale, setSubtitleScale] = useState(1);
     const [playerError, setPlayerError] = useState(null);
-    const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
     const [snapshot, setSnapshot] = useState(() => snapshotRef.current);
     const shellStyle = useMemo(() => ({
         ['--asp-subtitle-scale']: String(subtitleScale),
@@ -180,8 +194,7 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
         snapshotRef.current = initialSnapshot;
         setSnapshot(initialSnapshot);
         setPlayerError(null);
-        hasRenderedFrameRef.current = false;
-        setHasRenderedFrame(false);
+        renderedFrameRef.current = false;
     }, [initialSnapshot]);
     useEffect(() => {
         const host = hostRef.current;
@@ -189,106 +202,74 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             return;
         }
         finishedRef.current = false;
-        host.innerHTML = '';
+        renderedFrameRef.current = false;
         setPlayerError(null);
-        hasRenderedFrameRef.current = false;
-        setHasRenderedFrame(false);
+        host.innerHTML = '';
         let disposed = false;
-        let cleanupListeners = null;
-        void import('artplayer')
-            .then((module) => {
+        let cleanupMediaListeners = null;
+        const initializePlayer = async () => {
+            const module = await import('xgplayer');
             if (disposed) {
                 return;
             }
-            const Artplayer = module.default;
-            const art = new Artplayer({
-                container: host,
+            const Player = module.default;
+            const player = new Player({
+                el: host,
                 url,
                 poster,
-                theme: themeColor,
+                width: '100%',
+                height: '100%',
+                fluid: true,
                 autoplay: false,
-                mutex: true,
-                autoSize: true,
-                fullscreen: true,
-                fullscreenWeb: true,
+                autoplayMuted: false,
+                volume: snapshotRef.current.volume,
+                playsinline: true,
+                videoFillMode: 'contain',
+                closeVideoClick: false,
+                closeVideoDblclick: false,
+                closeControlsBlur: false,
+                closeDelayBlur: false,
+                inactive: 1800,
                 pip: true,
-                setting: true,
-                subtitleOffset: true,
-                playbackRate: true,
-                hotkey: true,
-                lock: true,
-                gesture: true,
-                miniProgressBar: true,
-                fastForward: true,
-                autoMini: false,
-                autoOrientation: true,
-                airplay: true,
-                controls: [
-                    {
-                        name: 'study-subtitle-toggle',
-                        position: 'right',
-                        html: '字幕',
-                        tooltip: '隐藏学习字幕',
-                        click() {
-                            const next = !subtitleVisibleRef.current;
-                            subtitleVisibleRef.current = next;
-                            setSubtitleVisible(next);
-                            art.notice.show = next ? '学习字幕已显示' : '学习字幕已隐藏';
-                        },
-                    },
-                ],
-                settings: [
-                    {
-                        name: 'study-subtitle-visibility',
-                        html: '学习字幕',
-                        tooltip: '显示中',
-                        switch: true,
-                        onSwitch(item) {
-                            const next = !subtitleVisibleRef.current;
-                            subtitleVisibleRef.current = next;
-                            setSubtitleVisible(next);
-                            item.tooltip = next ? '显示中' : '已隐藏';
-                            art.notice.show = next ? '学习字幕已显示' : '学习字幕已隐藏';
-                        },
-                    },
-                    {
-                        name: 'study-subtitle-size',
-                        html: '字幕大小',
-                        tooltip: '标准',
-                        selector: SUBTITLE_SCALE_OPTIONS.map((option) => ({
-                            html: option.label,
-                            value: option.value,
-                            default: option.value === subtitleScaleRef.current,
-                        })),
-                        onSelect(item) {
-                            const nextScale = Number(item.value ?? 1);
-                            subtitleScaleRef.current = nextScale;
-                            setSubtitleScale(nextScale);
-                            item.tooltip = item.html;
-                            art.notice.show = `字幕大小：${item.html}`;
-                        },
-                    },
-                ],
-                moreVideoAttr: {
-                    playsInline: true,
+                cssFullscreen: true,
+                screenShot: true,
+                rotate: false,
+                download: false,
+                mini: false,
+                keyShortcut: true,
+                miniprogress: true,
+                playbackRate: [0.75, 1, 1.25, 1.5, 2],
+                commonStyle: {
+                    progressColor: '#ffe2ad',
+                    playedColor: themeColor,
+                    cachedColor: 'rgba(255,255,255,0.28)',
+                    volumeColor: '#cdebd8',
+                },
+                videoAttributes: {
                     preload: 'auto',
+                    playsinline: 'true',
+                    webkitPlaysinline: 'true',
+                    x5Playsinline: 'true',
+                    x5VideoPlayerType: 'h5',
+                    crossOrigin: 'anonymous',
+                },
+                controls: {
+                    mode: 'flex',
+                    initShow: true,
+                    autoHide: true,
                 },
             });
-            artRef.current = art;
-            art.volume = snapshotRef.current.volume;
-            const markRenderedFrame = () => {
-                if (disposed || hasRenderedFrameRef.current) {
-                    return;
-                }
-                hasRenderedFrameRef.current = true;
-                setHasRenderedFrame(true);
-            };
+            playerRef.current = player;
+            player.volume = snapshotRef.current.volume;
+            const media = player.media;
+            if (!media || typeof media.addEventListener !== 'function') {
+                throw new Error('播放器视频内核没有正确初始化。');
+            }
             const emitSnapshot = (patch) => {
-                const video = art.video;
-                const absoluteMs = Math.round(video.currentTime * 1000);
+                const absoluteMs = Math.round(player.currentTime * 1000);
                 const elapsedMs = Math.min(durationMs, Math.max(0, absoluteMs - clipStartMs));
                 const next = {
-                    ...createSnapshot(elapsedMs, absoluteMs, durationMs, snapshotRef.current.isReady || video.readyState >= 2, !video.paused && !video.ended, snapshotRef.current.isBuffering, snapshotRef.current.isAutoplayBlocked, video.volume, segments, knowledgePoints),
+                    ...createSnapshot(elapsedMs, absoluteMs, durationMs, snapshotRef.current.isReady || media.readyState >= 2, !media.paused && !media.ended, snapshotRef.current.isBuffering, snapshotRef.current.isAutoplayBlocked, player.volume, segments, knowledgePoints),
                     ...patch,
                 };
                 snapshotRef.current = next;
@@ -296,17 +277,43 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 onStateChangeRef.current?.(next);
                 return next;
             };
+            const markRenderedFrame = () => {
+                if (renderedFrameRef.current) {
+                    return;
+                }
+                if (media.videoWidth > 0 && media.videoHeight > 0) {
+                    renderedFrameRef.current = true;
+                }
+            };
+            const watchVideoFrame = () => {
+                if (typeof media.requestVideoFrameCallback === 'function') {
+                    const handle = media.requestVideoFrameCallback(() => {
+                        markRenderedFrame();
+                    });
+                    return () => {
+                        if (typeof media.cancelVideoFrameCallback === 'function') {
+                            media.cancelVideoFrameCallback(handle);
+                        }
+                    };
+                }
+                const timeoutId = window.setTimeout(() => {
+                    markRenderedFrame();
+                }, 80);
+                return () => {
+                    window.clearTimeout(timeoutId);
+                };
+            };
+            let cancelFrameWatch = null;
             const tryPlay = (fromBeginning = false) => {
-                const video = art.video;
                 const startSec = clipStartMs / 1000;
                 const endSec = effectiveClipEndMs / 1000;
-                const outsideSlice = video.currentTime < startSec || video.currentTime > endSec;
+                const outsideSlice = player.currentTime < startSec || player.currentTime > endSec;
                 if (fromBeginning || outsideSlice) {
-                    art.currentTime = startSec;
+                    player.currentTime = startSec;
                     finishedRef.current = false;
                     emitSnapshot({ elapsedMs: 0, absoluteMs: clipStartMs });
                 }
-                const attempt = art.play();
+                const attempt = player.play();
                 if (attempt && typeof attempt.then === 'function') {
                     void attempt
                         .then(() => {
@@ -319,8 +326,8 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             };
             const handleLoadedMetadata = () => {
                 const startSec = clipStartMs / 1000;
-                if (Math.abs(art.currentTime - startSec) > 0.1) {
-                    art.currentTime = startSec;
+                if (Math.abs(player.currentTime - startSec) > 0.1) {
+                    player.currentTime = startSec;
                 }
                 emitSnapshot({
                     elapsedMs: 0,
@@ -336,12 +343,10 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 }
             };
             const handleTimeUpdate = () => {
-                const absoluteMs = Math.round(art.currentTime * 1000);
-                if (!hasRenderedFrameRef.current && art.video.videoWidth > 0 && art.video.videoHeight > 0) {
-                    markRenderedFrame();
-                }
+                markRenderedFrame();
+                const absoluteMs = Math.round(player.currentTime * 1000);
                 if (absoluteMs >= effectiveClipEndMs) {
-                    art.pause();
+                    player.pause();
                     const finalState = emitSnapshot({
                         elapsedMs: durationMs,
                         absoluteMs: effectiveClipEndMs,
@@ -358,38 +363,38 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 emitSnapshot();
             };
             const handleSeeked = () => {
-                const absoluteMs = Math.round(art.currentTime * 1000);
+                const absoluteMs = Math.round(player.currentTime * 1000);
                 if (absoluteMs < clipStartMs) {
-                    art.currentTime = clipStartMs / 1000;
+                    player.currentTime = clipStartMs / 1000;
                     return;
                 }
                 if (absoluteMs > effectiveClipEndMs) {
-                    art.currentTime = effectiveClipEndMs / 1000;
+                    player.currentTime = effectiveClipEndMs / 1000;
                 }
                 emitSnapshot({ isBuffering: false });
             };
-            const video = art.video;
-            const watchVideoFrame = () => {
-                if (typeof video.requestVideoFrameCallback === 'function') {
-                    const handle = video.requestVideoFrameCallback(() => {
-                        markRenderedFrame();
-                    });
-                    return () => {
-                        if (typeof video.cancelVideoFrameCallback === 'function') {
-                            video.cancelVideoFrameCallback(handle);
-                        }
-                    };
+            const handlePlayerError = () => {
+                emitSnapshot({ isBuffering: false, isPlaying: false });
+                const message = '当前视频浏览器无法正常解码播放。请优先使用 MP4(H.264/AAC) 或 WebM 格式。';
+                setPlayerError(message);
+                onErrorRef.current?.(message);
+            };
+            const missingPictureGuard = () => {
+                if (!renderedFrameRef.current &&
+                    player.currentTime > Math.max(clipStartMs / 1000 + 0.4, 0.4) &&
+                    media.readyState >= 2 &&
+                    media.videoWidth === 0) {
+                    player.pause();
+                    const message = '当前文件已经开始播放音频，但画面没有正常解码。系统建议先转成 MP4(H.264/AAC) 再播放。';
+                    setPlayerError(message);
+                    onErrorRef.current?.(message);
                 }
-                const timeoutId = window.setTimeout(() => {
-                    if (video.videoWidth > 0 && video.videoHeight > 0) {
-                        markRenderedFrame();
-                    }
-                }, 80);
-                return () => {
-                    window.clearTimeout(timeoutId);
-                };
             };
             const loadStart = () => emitSnapshot({ isReady: false, isBuffering: true });
+            const loadedData = () => {
+                cancelFrameWatch?.();
+                cancelFrameWatch = watchVideoFrame();
+            };
             const canPlay = () => emitSnapshot({ isReady: true, isBuffering: false });
             const playing = () => emitSnapshot({
                 isReady: true,
@@ -400,70 +405,48 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             const paused = () => emitSnapshot({ isPlaying: false });
             const waiting = () => emitSnapshot({ isBuffering: true });
             const seeking = () => emitSnapshot({ isBuffering: true });
-            const volumeChange = () => emitSnapshot({ volume: video.volume });
-            let cancelFrameWatch = null;
-            const loadedData = () => {
+            const volumeChange = () => emitSnapshot({ volume: media.volume });
+            media.addEventListener('loadstart', loadStart);
+            media.addEventListener('loadedmetadata', handleLoadedMetadata);
+            media.addEventListener('loadeddata', loadedData);
+            media.addEventListener('canplay', canPlay);
+            media.addEventListener('playing', playing);
+            media.addEventListener('pause', paused);
+            media.addEventListener('waiting', waiting);
+            media.addEventListener('seeking', seeking);
+            media.addEventListener('seeked', handleSeeked);
+            media.addEventListener('timeupdate', handleTimeUpdate);
+            media.addEventListener('timeupdate', missingPictureGuard);
+            media.addEventListener('volumechange', volumeChange);
+            media.addEventListener('error', handlePlayerError);
+            cleanupMediaListeners = () => {
                 cancelFrameWatch?.();
-                cancelFrameWatch = watchVideoFrame();
+                media.removeEventListener('loadstart', loadStart);
+                media.removeEventListener('loadedmetadata', handleLoadedMetadata);
+                media.removeEventListener('loadeddata', loadedData);
+                media.removeEventListener('canplay', canPlay);
+                media.removeEventListener('playing', playing);
+                media.removeEventListener('pause', paused);
+                media.removeEventListener('waiting', waiting);
+                media.removeEventListener('seeking', seeking);
+                media.removeEventListener('seeked', handleSeeked);
+                media.removeEventListener('timeupdate', handleTimeUpdate);
+                media.removeEventListener('timeupdate', missingPictureGuard);
+                media.removeEventListener('volumechange', volumeChange);
+                media.removeEventListener('error', handlePlayerError);
             };
-            const error = () => {
-                emitSnapshot({ isBuffering: false, isPlaying: false });
-                const message = '当前视频浏览器无法正常解码播放。请优先使用 MP4(H.264/AAC) 或 WebM 格式。';
-                setPlayerError(message);
-                onErrorRef.current?.(message);
-            };
-            const missingPictureGuard = () => {
-                if (!hasRenderedFrameRef.current &&
-                    video.currentTime > Math.max(clipStartMs / 1000 + 0.4, 0.4) &&
-                    video.readyState >= 2 &&
-                    video.videoWidth === 0) {
-                    art.pause();
-                    const message = '当前文件已经开始播放音频，但画面没有正常解码。系统建议先转成 MP4(H.264/AAC) 再播放。';
-                    setPlayerError(message);
-                    onErrorRef.current?.(message);
-                }
-            };
-            video.addEventListener('loadstart', loadStart);
-            video.addEventListener('loadedmetadata', handleLoadedMetadata);
-            video.addEventListener('loadeddata', loadedData);
-            video.addEventListener('canplay', canPlay);
-            video.addEventListener('playing', playing);
-            video.addEventListener('pause', paused);
-            video.addEventListener('waiting', waiting);
-            video.addEventListener('seeking', seeking);
-            video.addEventListener('seeked', handleSeeked);
-            video.addEventListener('timeupdate', handleTimeUpdate);
-            video.addEventListener('timeupdate', missingPictureGuard);
-            video.addEventListener('volumechange', volumeChange);
-            video.addEventListener('error', error);
-            cleanupListeners = () => {
-                cancelFrameWatch?.();
-                video.removeEventListener('loadstart', loadStart);
-                video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-                video.removeEventListener('loadeddata', loadedData);
-                video.removeEventListener('canplay', canPlay);
-                video.removeEventListener('playing', playing);
-                video.removeEventListener('pause', paused);
-                video.removeEventListener('waiting', waiting);
-                video.removeEventListener('seeking', seeking);
-                video.removeEventListener('seeked', handleSeeked);
-                video.removeEventListener('timeupdate', handleTimeUpdate);
-                video.removeEventListener('timeupdate', missingPictureGuard);
-                video.removeEventListener('volumechange', volumeChange);
-                video.removeEventListener('error', error);
-            };
-        })
-            .catch((error) => {
+        };
+        void initializePlayer().catch((error) => {
             console.error(error);
-            const message = '播放器内核初始化失败，请稍后重试。';
+            const message = '播放器初始化失败，请稍后重试。';
             setPlayerError(message);
             onErrorRef.current?.(message);
         });
         return () => {
             disposed = true;
-            cleanupListeners?.();
-            artRef.current?.destroy(false);
-            artRef.current = null;
+            cleanupMediaListeners?.();
+            playerRef.current?.destroy();
+            playerRef.current = null;
         };
     }, [
         autoplay,
@@ -478,45 +461,46 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
     ]);
     useImperativeHandle(ref, () => ({
         play() {
-            artRef.current?.play();
+            void playerRef.current?.play();
         },
         pause() {
-            artRef.current?.pause();
+            playerRef.current?.pause();
         },
         toggle() {
-            const art = artRef.current;
-            if (!art) {
+            const player = playerRef.current;
+            const media = player?.media;
+            if (!player || !media) {
                 return;
             }
-            if (art.video.paused) {
-                art.play();
+            if (media.paused) {
+                void player.play();
                 return;
             }
-            art.pause();
+            player.pause();
         },
         restart() {
-            const art = artRef.current;
-            if (!art) {
+            const player = playerRef.current;
+            if (!player) {
                 return;
             }
             finishedRef.current = false;
-            art.currentTime = clipStartMs / 1000;
-            void art.play();
+            player.currentTime = clipStartMs / 1000;
+            void player.play();
         },
         seekTo(nextElapsedMs) {
-            const art = artRef.current;
-            if (!art) {
+            const player = playerRef.current;
+            if (!player) {
                 return;
             }
             const clamped = Math.min(durationMs, Math.max(0, nextElapsedMs));
-            art.currentTime = (clipStartMs + clamped) / 1000;
+            player.currentTime = (clipStartMs + clamped) / 1000;
         },
         setVolume(nextVolume) {
-            const art = artRef.current;
-            if (!art) {
+            const player = playerRef.current;
+            if (!player) {
                 return;
             }
-            art.volume = Math.min(1, Math.max(0, nextVolume));
+            player.volume = Math.min(1, Math.max(0, nextVolume));
         },
         getState() {
             return snapshotRef.current;
@@ -527,10 +511,17 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             ? `${snapshot.currentSegment.kana} / ${snapshot.currentSegment.romaji}`
             : snapshot.currentSegment.kana
         : '';
-    return (_jsxs("div", { className: className ? `asp-shell ${className}` : 'asp-shell', style: shellStyle, children: [_jsxs("div", { className: "asp-stage", children: [_jsx("div", { ref: hostRef, className: "asp-host" }), poster ? (_jsx("img", { className: hasRenderedFrame ? 'asp-poster-fallback asp-poster-hidden' : 'asp-poster-fallback', src: poster, alt: title ? `${title} 封面` : '视频封面' })) : null, subtitleVisible && snapshot.currentSegment ? (_jsxs("div", { className: "asp-subtitle-card", children: [_jsxs("span", { className: "asp-subtitle-label", children: [title || 'Study Clip', sourceLabel ? ` / ${sourceLabel}` : ''] }), _jsx("strong", { className: "asp-subtitle-ja", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) }), showSubtitleReading && overlayText ? (_jsx("span", { className: "asp-subtitle-meta", children: overlayText })) : null, _jsx("span", { className: "asp-subtitle-zh", children: snapshot.currentSegment.zh })] })) : null, playerError ? (_jsxs("div", { className: "asp-error-card", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null, !playerError && !snapshot.isPlaying ? (_jsx("button", { type: "button", className: "asp-overlay-button", onClick: () => {
-                            if (artRef.current?.video.paused) {
-                                void artRef.current.play();
-                            }
-                        }, children: snapshot.isAutoplayBlocked ? '点击开始播放' : snapshot.elapsedMs > 0 ? '继续播放' : '开始播放' })) : null, !playerError && snapshot.isBuffering && snapshot.isReady ? (_jsx("div", { className: "asp-status", children: "\u6B63\u5728\u7F13\u51B2\u2026" })) : null, !playerError && !snapshot.isReady && !snapshot.isAutoplayBlocked ? (_jsx("div", { className: "asp-status", children: "\u89C6\u9891\u52A0\u8F7D\u4E2D\u2026" })) : null] }), _jsxs("div", { className: "asp-hud", children: [_jsx("span", { children: snapshot.isPlaying ? '正在播放' : '已暂停' }), _jsxs("strong", { children: [formatClock(snapshot.elapsedMs), " / ", formatClock(durationMs)] })] })] }));
+    const subtitleScaleLabel = getSubtitleScaleLabel(subtitleScale);
+    return (_jsxs("div", { className: className ? `asp-shell ${className}` : 'asp-shell', style: shellStyle, children: [_jsxs("div", { className: "asp-stage", children: [_jsx("div", { ref: hostRef, className: "asp-host" }), _jsxs("div", { className: "asp-floatingTools", children: [_jsx("button", { type: "button", className: "asp-toolButton", onClick: () => {
+                                    const next = !subtitleVisibleRef.current;
+                                    subtitleVisibleRef.current = next;
+                                    setSubtitleVisible(next);
+                                }, children: _jsx("strong", { children: subtitleVisible ? '隐藏字幕' : '显示字幕' }) }), _jsx("button", { type: "button", className: "asp-toolButton", onClick: () => {
+                                    const currentIndex = SUBTITLE_SCALE_OPTIONS.findIndex((option) => option.value === subtitleScaleRef.current);
+                                    const nextIndex = (currentIndex + 1) % SUBTITLE_SCALE_OPTIONS.length;
+                                    const nextValue = SUBTITLE_SCALE_OPTIONS[nextIndex].value;
+                                    subtitleScaleRef.current = nextValue;
+                                    setSubtitleScale(nextValue);
+                                }, children: _jsxs("strong", { children: ["\u5B57\u5E55\u5927\u5C0F ", subtitleScaleLabel] }) })] }), subtitleVisible && snapshot.currentSegment ? (_jsxs("div", { className: "asp-subtitleCard", children: [_jsxs("span", { className: "asp-subtitleLabel", children: [title || 'Study Clip', sourceLabel ? ` / ${sourceLabel}` : ''] }), _jsx("strong", { className: "asp-subtitleJa", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) }), showSubtitleReading && overlayText ? (_jsx("span", { className: "asp-subtitleMeta", children: overlayText })) : null, _jsx("span", { className: "asp-subtitleZh", children: snapshot.currentSegment.zh })] })) : null, playerError ? (_jsxs("div", { className: "asp-errorCard", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null] }), _jsxs("div", { className: "asp-hud", children: [_jsxs("span", { children: [sourceLabel || '本地原片', " / ", snapshot.isPlaying ? '播放中' : snapshot.isBuffering ? '缓冲中' : '已暂停'] }), _jsxs("strong", { children: [formatClock(snapshot.elapsedMs), " / ", formatClock(durationMs)] })] })] }));
 });
 //# sourceMappingURL=AnimeStudyPlayer.js.map

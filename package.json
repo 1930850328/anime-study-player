@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": false,
   "type": "module",
-  "description": "Reusable React study player for anime learning clips, powered by ArtPlayer.",
+  "description": "Reusable React study player for anime learning clips, powered by xgplayer.",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,7 +22,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "artplayer": "^5.4.0"
+    "core-js": "^3.45.1",
+    "xgplayer": "^3.0.24"
   },
   "peerDependencies": {
     "react": "^19.0.0",
