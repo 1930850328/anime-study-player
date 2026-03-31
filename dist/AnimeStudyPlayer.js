@@ -10,10 +10,13 @@ const SUBTITLE_SCALE_OPTIONS = [
 const styleText = `
 .asp-shell{--asp-subtitle-scale:1;position:relative;width:100%;display:grid;gap:12px}
 .asp-stage{position:relative;width:100%;aspect-ratio:16/9;min-height:240px;max-height:min(64svh,680px);overflow:hidden;border-radius:28px;background:#130d0b;box-shadow:0 20px 40px rgba(20,12,10,.18)}
+.asp-host{position:absolute;inset:0;width:100%;height:100%}
 .asp-stage .art-video-player{width:100%;height:100%}
 .asp-stage .art-video,.asp-stage video{width:100%;height:100%;object-fit:contain;background:#000}
 .asp-stage .art-bottom{z-index:12}
 .asp-stage .art-settings{z-index:14}
+.asp-poster-fallback{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;background:#130d0b;pointer-events:none;transition:opacity .18s ease}
+.asp-poster-hidden{opacity:0}
 .asp-subtitle-card{position:absolute;left:14px;right:14px;bottom:76px;z-index:11;max-width:min(88%,820px);margin-inline:auto;padding:12px 14px;border-radius:22px;background:rgba(14,9,8,.42);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);box-shadow:0 16px 28px rgba(18,12,10,.24);pointer-events:none}
 .asp-subtitle-label{display:inline-flex;margin-bottom:6px;padding:4px 10px;border-radius:999px;color:rgba(255,248,243,.86);background:rgba(255,255,255,.12);font-size:12px}
 .asp-subtitle-ja{display:block;color:#fffaf6;font-size:calc(clamp(1.04rem,1.6vw,1.32rem) * var(--asp-subtitle-scale));line-height:1.5;font-weight:700}
@@ -153,10 +156,12 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
     const onErrorRef = useRef(onError);
     const onReadyRef = useRef(onReady);
     const onStateChangeRef = useRef(onStateChange);
+    const hasRenderedFrameRef = useRef(false);
     const effectiveClipEndMs = clipEndMs ?? clipStartMs + durationMs;
     const [subtitleVisible, setSubtitleVisible] = useState(true);
     const [subtitleScale, setSubtitleScale] = useState(1);
     const [playerError, setPlayerError] = useState(null);
+    const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
     const [snapshot, setSnapshot] = useState(() => snapshotRef.current);
     const shellStyle = useMemo(() => ({
         ['--asp-subtitle-scale']: String(subtitleScale),
@@ -175,6 +180,8 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
         snapshotRef.current = initialSnapshot;
         setSnapshot(initialSnapshot);
         setPlayerError(null);
+        hasRenderedFrameRef.current = false;
+        setHasRenderedFrame(false);
     }, [initialSnapshot]);
     useEffect(() => {
         const host = hostRef.current;
@@ -184,6 +191,8 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
         finishedRef.current = false;
         host.innerHTML = '';
         setPlayerError(null);
+        hasRenderedFrameRef.current = false;
+        setHasRenderedFrame(false);
         let disposed = false;
         let cleanupListeners = null;
         void import('artplayer')
@@ -267,6 +276,13 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             });
             artRef.current = art;
             art.volume = snapshotRef.current.volume;
+            const markRenderedFrame = () => {
+                if (disposed || hasRenderedFrameRef.current) {
+                    return;
+                }
+                hasRenderedFrameRef.current = true;
+                setHasRenderedFrame(true);
+            };
             const emitSnapshot = (patch) => {
                 const video = art.video;
                 const absoluteMs = Math.round(video.currentTime * 1000);
@@ -321,6 +337,9 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             };
             const handleTimeUpdate = () => {
                 const absoluteMs = Math.round(art.currentTime * 1000);
+                if (!hasRenderedFrameRef.current && art.video.videoWidth > 0 && art.video.videoHeight > 0) {
+                    markRenderedFrame();
+                }
                 if (absoluteMs >= effectiveClipEndMs) {
                     art.pause();
                     const finalState = emitSnapshot({
@@ -350,6 +369,26 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 emitSnapshot({ isBuffering: false });
             };
             const video = art.video;
+            const watchVideoFrame = () => {
+                if (typeof video.requestVideoFrameCallback === 'function') {
+                    const handle = video.requestVideoFrameCallback(() => {
+                        markRenderedFrame();
+                    });
+                    return () => {
+                        if (typeof video.cancelVideoFrameCallback === 'function') {
+                            video.cancelVideoFrameCallback(handle);
+                        }
+                    };
+                }
+                const timeoutId = window.setTimeout(() => {
+                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                        markRenderedFrame();
+                    }
+                }, 80);
+                return () => {
+                    window.clearTimeout(timeoutId);
+                };
+            };
             const loadStart = () => emitSnapshot({ isReady: false, isBuffering: true });
             const canPlay = () => emitSnapshot({ isReady: true, isBuffering: false });
             const playing = () => emitSnapshot({
@@ -362,14 +401,31 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             const waiting = () => emitSnapshot({ isBuffering: true });
             const seeking = () => emitSnapshot({ isBuffering: true });
             const volumeChange = () => emitSnapshot({ volume: video.volume });
+            let cancelFrameWatch = null;
+            const loadedData = () => {
+                cancelFrameWatch?.();
+                cancelFrameWatch = watchVideoFrame();
+            };
             const error = () => {
                 emitSnapshot({ isBuffering: false, isPlaying: false });
                 const message = '当前视频浏览器无法正常解码播放。请优先使用 MP4(H.264/AAC) 或 WebM 格式。';
                 setPlayerError(message);
                 onErrorRef.current?.(message);
             };
+            const missingPictureGuard = () => {
+                if (!hasRenderedFrameRef.current &&
+                    video.currentTime > Math.max(clipStartMs / 1000 + 0.4, 0.4) &&
+                    video.readyState >= 2 &&
+                    video.videoWidth === 0) {
+                    art.pause();
+                    const message = '当前文件已经开始播放音频，但画面没有正常解码。系统建议先转成 MP4(H.264/AAC) 再播放。';
+                    setPlayerError(message);
+                    onErrorRef.current?.(message);
+                }
+            };
             video.addEventListener('loadstart', loadStart);
             video.addEventListener('loadedmetadata', handleLoadedMetadata);
+            video.addEventListener('loadeddata', loadedData);
             video.addEventListener('canplay', canPlay);
             video.addEventListener('playing', playing);
             video.addEventListener('pause', paused);
@@ -377,11 +433,14 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             video.addEventListener('seeking', seeking);
             video.addEventListener('seeked', handleSeeked);
             video.addEventListener('timeupdate', handleTimeUpdate);
+            video.addEventListener('timeupdate', missingPictureGuard);
             video.addEventListener('volumechange', volumeChange);
             video.addEventListener('error', error);
             cleanupListeners = () => {
+                cancelFrameWatch?.();
                 video.removeEventListener('loadstart', loadStart);
                 video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+                video.removeEventListener('loadeddata', loadedData);
                 video.removeEventListener('canplay', canPlay);
                 video.removeEventListener('playing', playing);
                 video.removeEventListener('pause', paused);
@@ -389,6 +448,7 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 video.removeEventListener('seeking', seeking);
                 video.removeEventListener('seeked', handleSeeked);
                 video.removeEventListener('timeupdate', handleTimeUpdate);
+                video.removeEventListener('timeupdate', missingPictureGuard);
                 video.removeEventListener('volumechange', volumeChange);
                 video.removeEventListener('error', error);
             };
@@ -467,7 +527,7 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             ? `${snapshot.currentSegment.kana} / ${snapshot.currentSegment.romaji}`
             : snapshot.currentSegment.kana
         : '';
-    return (_jsxs("div", { className: className ? `asp-shell ${className}` : 'asp-shell', style: shellStyle, children: [_jsxs("div", { className: "asp-stage", children: [_jsx("div", { ref: hostRef }), subtitleVisible && snapshot.currentSegment ? (_jsxs("div", { className: "asp-subtitle-card", children: [_jsxs("span", { className: "asp-subtitle-label", children: [title || 'Study Clip', sourceLabel ? ` / ${sourceLabel}` : ''] }), _jsx("strong", { className: "asp-subtitle-ja", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) }), showSubtitleReading && overlayText ? (_jsx("span", { className: "asp-subtitle-meta", children: overlayText })) : null, _jsx("span", { className: "asp-subtitle-zh", children: snapshot.currentSegment.zh })] })) : null, playerError ? (_jsxs("div", { className: "asp-error-card", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null, !playerError && !snapshot.isPlaying ? (_jsx("button", { type: "button", className: "asp-overlay-button", onClick: () => {
+    return (_jsxs("div", { className: className ? `asp-shell ${className}` : 'asp-shell', style: shellStyle, children: [_jsxs("div", { className: "asp-stage", children: [_jsx("div", { ref: hostRef, className: "asp-host" }), poster ? (_jsx("img", { className: hasRenderedFrame ? 'asp-poster-fallback asp-poster-hidden' : 'asp-poster-fallback', src: poster, alt: title ? `${title} 封面` : '视频封面' })) : null, subtitleVisible && snapshot.currentSegment ? (_jsxs("div", { className: "asp-subtitle-card", children: [_jsxs("span", { className: "asp-subtitle-label", children: [title || 'Study Clip', sourceLabel ? ` / ${sourceLabel}` : ''] }), _jsx("strong", { className: "asp-subtitle-ja", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) }), showSubtitleReading && overlayText ? (_jsx("span", { className: "asp-subtitle-meta", children: overlayText })) : null, _jsx("span", { className: "asp-subtitle-zh", children: snapshot.currentSegment.zh })] })) : null, playerError ? (_jsxs("div", { className: "asp-error-card", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null, !playerError && !snapshot.isPlaying ? (_jsx("button", { type: "button", className: "asp-overlay-button", onClick: () => {
                             if (artRef.current?.video.paused) {
                                 void artRef.current.play();
                             }
