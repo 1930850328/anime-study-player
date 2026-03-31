@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from 'react'
 
@@ -24,21 +25,33 @@ type ArtplayerCtor = new (
 ) => ArtplayerInstance
 
 const STYLE_ID = 'anime-study-player-style'
+const SUBTITLE_SCALE_OPTIONS = [
+  { label: '小', value: 0.9 },
+  { label: '标准', value: 1 },
+  { label: '大', value: 1.15 },
+  { label: '超大', value: 1.3 },
+] as const
 
 const styleText = `
-.asp-shell{position:relative;width:100%;display:grid;gap:12px}
+.asp-shell{--asp-subtitle-scale:1;position:relative;width:100%;display:grid;gap:12px}
 .asp-stage{position:relative;width:100%;aspect-ratio:16/9;min-height:240px;max-height:min(64svh,680px);overflow:hidden;border-radius:28px;background:#130d0b;box-shadow:0 20px 40px rgba(20,12,10,.18)}
 .asp-stage .art-video-player{width:100%;height:100%}
-.asp-subtitle-card{position:absolute;left:16px;right:16px;bottom:84px;z-index:9;padding:14px 16px;border-radius:24px;background:rgba(20,12,10,.54);backdrop-filter:blur(18px);box-shadow:0 18px 30px rgba(18,12,10,.28);pointer-events:none}
+.asp-stage .art-video,.asp-stage video{width:100%;height:100%;object-fit:contain;background:#000}
+.asp-stage .art-bottom{z-index:12}
+.asp-stage .art-settings{z-index:14}
+.asp-subtitle-card{position:absolute;left:14px;right:14px;bottom:76px;z-index:11;max-width:min(88%,820px);margin-inline:auto;padding:12px 14px;border-radius:22px;background:rgba(14,9,8,.42);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);box-shadow:0 16px 28px rgba(18,12,10,.24);pointer-events:none}
 .asp-subtitle-label{display:inline-flex;margin-bottom:6px;padding:4px 10px;border-radius:999px;color:rgba(255,248,243,.86);background:rgba(255,255,255,.12);font-size:12px}
-.asp-subtitle-ja{display:block;color:#fffaf6;font-size:clamp(1.16rem,2vw,1.56rem);line-height:1.58;font-weight:700}
-.asp-subtitle-meta,.asp-subtitle-zh{display:block;margin-top:4px;color:rgba(255,246,241,.84);line-height:1.6}
+.asp-subtitle-ja{display:block;color:#fffaf6;font-size:calc(clamp(1.04rem,1.6vw,1.32rem) * var(--asp-subtitle-scale));line-height:1.5;font-weight:700}
+.asp-subtitle-meta,.asp-subtitle-zh{display:block;margin-top:4px;color:rgba(255,246,241,.84);line-height:1.55;font-size:calc(.9rem * var(--asp-subtitle-scale))}
 .asp-mark-word,.asp-mark-grammar{padding:.06em .22em;border-radius:.4em;color:#442f28}
 .asp-mark-word{background:linear-gradient(120deg,rgba(255,215,176,.98),rgba(255,237,191,.98))}
 .asp-mark-grammar{background:linear-gradient(120deg,rgba(205,234,221,.98),rgba(181,224,237,.98))}
 .asp-overlay-button,.asp-status{position:absolute;left:50%;top:50%;z-index:10;transform:translate(-50%,-50%)}
 .asp-overlay-button{display:inline-flex;align-items:center;gap:10px;padding:14px 20px;border-radius:999px;color:#fffaf6;background:rgba(20,13,11,.72);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.26);cursor:pointer}
 .asp-status{padding:10px 14px;border-radius:999px;color:#fffaf6;background:rgba(20,13,11,.62);backdrop-filter:blur(14px);pointer-events:none}
+.asp-error-card{position:absolute;left:50%;top:50%;z-index:15;display:grid;gap:8px;width:min(82%,440px);padding:16px 18px;border-radius:22px;color:#fffaf6;background:rgba(22,14,12,.84);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(18px);transform:translate(-50%,-50%)}
+.asp-error-card strong{font-size:1rem}
+.asp-error-card span{color:rgba(255,246,241,.82);line-height:1.6}
 .asp-hud{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border-radius:18px;background:rgba(255,255,255,.82);border:1px solid rgba(238,223,213,.9);color:#7d6255}
 .asp-hud strong{color:#49342c;font-size:1rem}
 .asp-shell .art-bottom{backdrop-filter:blur(10px)}
@@ -49,7 +62,7 @@ const styleText = `
 .asp-shell .art-highlight span{background:#ffc8af}
 @media (max-width:720px){
   .asp-stage{min-height:220px;aspect-ratio:16/10;border-radius:24px}
-  .asp-subtitle-card{left:12px;right:12px;bottom:76px;padding:12px 14px;border-radius:22px}
+  .asp-subtitle-card{left:12px;right:12px;bottom:72px;padding:10px 12px;border-radius:20px;max-width:calc(100% - 24px)}
   .asp-hud{flex-direction:column;align-items:flex-start}
 }
 `
@@ -70,11 +83,7 @@ function ensureStyle() {
 }
 
 function getCurrentSegment(segments: StudyTranscriptSegment[], currentMs: number) {
-  return (
-    segments.find((segment) => currentMs >= segment.startMs && currentMs < segment.endMs) ??
-    segments.at(-1) ??
-    segments.at(0)
-  )
+  return segments.find((segment) => currentMs >= segment.startMs && currentMs < segment.endMs)
 }
 
 function getActivePoints(points: StudyKnowledgePoint[], segment?: StudyTranscriptSegment) {
@@ -222,6 +231,8 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
     const hostRef = useRef<HTMLDivElement | null>(null)
     const artRef = useRef<ArtplayerInstance | null>(null)
     const finishedRef = useRef(false)
+    const subtitleVisibleRef = useRef(true)
+    const subtitleScaleRef = useRef(1)
     const snapshotRef = useRef<StudyPlayerSnapshot>(
       createSnapshot(0, clipStartMs, durationMs, false, false, true, false, 0.8, segments, knowledgePoints),
     )
@@ -230,8 +241,18 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
     const onReadyRef = useRef(onReady)
     const onStateChangeRef = useRef(onStateChange)
     const effectiveClipEndMs = clipEndMs ?? clipStartMs + durationMs
+    const [subtitleVisible, setSubtitleVisible] = useState(true)
+    const [subtitleScale, setSubtitleScale] = useState(1)
+    const [playerError, setPlayerError] = useState<string | null>(null)
     const [snapshot, setSnapshot] = useState<StudyPlayerSnapshot>(() =>
       snapshotRef.current,
+    )
+    const shellStyle = useMemo(
+      () =>
+        ({
+          ['--asp-subtitle-scale' as '--asp-subtitle-scale']: String(subtitleScale),
+        }) as CSSProperties,
+      [subtitleScale],
     )
 
     const initialSnapshot = useMemo(
@@ -265,6 +286,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
     useEffect(() => {
       snapshotRef.current = initialSnapshot
       setSnapshot(initialSnapshot)
+      setPlayerError(null)
     }, [initialSnapshot])
 
     useEffect(() => {
@@ -275,6 +297,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
 
       finishedRef.current = false
       host.innerHTML = ''
+      setPlayerError(null)
       let disposed = false
       let cleanupListeners: (() => void) | null = null
 
@@ -292,15 +315,67 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
             theme: themeColor,
             autoplay: false,
             mutex: true,
+            autoSize: true,
             fullscreen: true,
             fullscreenWeb: true,
             pip: true,
             setting: true,
+            subtitleOffset: true,
             playbackRate: true,
             hotkey: true,
+            lock: true,
+            gesture: true,
             miniProgressBar: true,
             fastForward: true,
             autoMini: false,
+            autoOrientation: true,
+            airplay: true,
+            controls: [
+              {
+                name: 'study-subtitle-toggle',
+                position: 'right',
+                html: '字幕',
+                tooltip: '隐藏学习字幕',
+                click() {
+                  const next = !subtitleVisibleRef.current
+                  subtitleVisibleRef.current = next
+                  setSubtitleVisible(next)
+                  art.notice.show = next ? '学习字幕已显示' : '学习字幕已隐藏'
+                },
+              },
+            ],
+            settings: [
+              {
+                name: 'study-subtitle-visibility',
+                html: '学习字幕',
+                tooltip: '显示中',
+                switch: true,
+                onSwitch(item) {
+                  const next = !subtitleVisibleRef.current
+                  subtitleVisibleRef.current = next
+                  setSubtitleVisible(next)
+                  item.tooltip = next ? '显示中' : '已隐藏'
+                  art.notice.show = next ? '学习字幕已显示' : '学习字幕已隐藏'
+                },
+              },
+              {
+                name: 'study-subtitle-size',
+                html: '字幕大小',
+                tooltip: '标准',
+                selector: SUBTITLE_SCALE_OPTIONS.map((option) => ({
+                  html: option.label,
+                  value: option.value,
+                  default: option.value === subtitleScaleRef.current,
+                })),
+                onSelect(item) {
+                  const nextScale = Number(item.value ?? 1)
+                  subtitleScaleRef.current = nextScale
+                  setSubtitleScale(nextScale)
+                  item.tooltip = item.html
+                  art.notice.show = `字幕大小：${item.html}`
+                },
+              },
+            ],
             moreVideoAttr: {
               playsInline: true,
               preload: 'auto',
@@ -430,7 +505,10 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
           const volumeChange = () => emitSnapshot({ volume: video.volume })
           const error = () => {
             emitSnapshot({ isBuffering: false, isPlaying: false })
-            onErrorRef.current?.('Player failed to load the current video source.')
+            const message =
+              '当前视频浏览器无法正常解码播放。请优先使用 MP4(H.264/AAC) 或 WebM 格式。'
+            setPlayerError(message)
+            onErrorRef.current?.(message)
           }
 
           video.addEventListener('loadstart', loadStart)
@@ -461,7 +539,9 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
         })
         .catch((error) => {
           console.error(error)
-          onErrorRef.current?.('Player engine failed to initialize.')
+          const message = '播放器内核初始化失败，请稍后重试。'
+          setPlayerError(message)
+          onErrorRef.current?.(message)
         })
 
       return () => {
@@ -541,11 +621,11 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
       : ''
 
     return (
-      <div className={className ? `asp-shell ${className}` : 'asp-shell'}>
+      <div className={className ? `asp-shell ${className}` : 'asp-shell'} style={shellStyle}>
         <div className="asp-stage">
           <div ref={hostRef} />
 
-          {snapshot.currentSegment ? (
+          {subtitleVisible && snapshot.currentSegment ? (
             <div className="asp-subtitle-card">
               <span className="asp-subtitle-label">
                 {title || 'Study Clip'}
@@ -559,7 +639,14 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
             </div>
           ) : null}
 
-          {!snapshot.isPlaying ? (
+          {playerError ? (
+            <div className="asp-error-card">
+              <strong>视频暂时无法播放</strong>
+              <span>{playerError}</span>
+            </div>
+          ) : null}
+
+          {!playerError && !snapshot.isPlaying ? (
             <button
               type="button"
               className="asp-overlay-button"
@@ -573,11 +660,11 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
             </button>
           ) : null}
 
-          {snapshot.isBuffering && snapshot.isReady ? (
+          {!playerError && snapshot.isBuffering && snapshot.isReady ? (
             <div className="asp-status">正在缓冲…</div>
           ) : null}
 
-          {!snapshot.isReady && !snapshot.isAutoplayBlocked ? (
+          {!playerError && !snapshot.isReady && !snapshot.isAutoplayBlocked ? (
             <div className="asp-status">视频加载中…</div>
           ) : null}
         </div>
