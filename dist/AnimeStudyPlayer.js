@@ -137,28 +137,15 @@ function hasReadableChineseLine(text) {
         return false;
     }
     const chineseCharCount = (normalized.match(/[\u4e00-\u9fff]/g) || []).length;
-    return chineseCharCount >= 4;
+    const slashCount = (normalized.match(/[\\/]/g) || []).length;
+    return chineseCharCount >= 6 && slashCount <= 1;
 }
 function buildSubtitleZhFallback(segment, points) {
     if (!segment) {
         return '';
     }
-    const wordHints = points
-        .filter((point) => point.kind !== 'grammar')
-        .slice(0, 3)
-        .map((point) => point.meaningZh)
-        .filter(Boolean);
-    const leadGrammar = points.find((point) => point.kind === 'grammar');
-    if (wordHints.length > 0 && leadGrammar) {
-        return `这句大意和“${wordHints.join('、')}”有关，其中 ${leadGrammar.expression} 表示“${leadGrammar.meaningZh}”。`;
-    }
-    if (wordHints.length > 0) {
-        return `这句大意和“${wordHints.join('、')}”有关。`;
-    }
-    if (leadGrammar) {
-        return `这句话里 ${leadGrammar.expression} 表示“${leadGrammar.meaningZh}”。`;
-    }
-    return '先结合原句来理解这句话。';
+    void points;
+    return '';
 }
 function formatTimeLabel(seconds) {
     const safeSeconds = Math.max(0, seconds);
@@ -221,7 +208,7 @@ function createSnapshot(elapsedMs, absoluteMs, durationMs, isReady, isPlaying, i
 function getSubtitleScaleLabel(value) {
     return SUBTITLE_SCALE_OPTIONS.find((option) => option.value === value)?.label ?? '标准';
 }
-export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, poster, durationMs, clipStartMs = 0, clipEndMs, segments, knowledgePoints, showRomaji = true, showSubtitleReading = false, autoplay = true, themeColor = '#ffc8af', className, onFinish, onError, onReady, onStateChange, }, ref) {
+export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, poster, durationMs, clipStartMs = 0, clipEndMs, segments, knowledgePoints, showRomaji = true, showSubtitleReading = false, showJapaneseSubtitle = true, showChineseSubtitle = true, autoplay = true, themeColor = '#ffc8af', className, onFinish, onError, onReady, onStateChange, }, ref) {
     void showRomaji;
     void showSubtitleReading;
     const hostRef = useRef(null);
@@ -636,6 +623,9 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
     const subtitleZhText = snapshot.currentSegment && hasReadableChineseLine(snapshot.currentSegment.zh)
         ? snapshot.currentSegment.zh
         : buildSubtitleZhFallback(snapshot.currentSegment, snapshot.activePoints);
+    const canRenderJapanese = showJapaneseSubtitle && Boolean(snapshot.currentSegment?.ja.trim());
+    const canRenderChinese = showChineseSubtitle && Boolean(subtitleZhText.trim());
+    const shouldRenderSubtitleCard = subtitleVisible && snapshot.currentSegment && (canRenderJapanese || canRenderChinese);
     return (_jsx("div", { className: className ? `asp-shell ${className}` : 'asp-shell', style: shellStyle, children: _jsxs("div", { className: "asp-stage", children: [_jsx("div", { ref: hostRef, className: "asp-host" }), _jsxs("div", { className: "asp-floatingTools", children: [_jsx("button", { type: "button", className: "asp-toolButton", onClick: () => {
                                 const next = !subtitleVisibleRef.current;
                                 subtitleVisibleRef.current = next;
@@ -646,6 +636,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                                 const nextValue = SUBTITLE_SCALE_OPTIONS[nextIndex].value;
                                 subtitleScaleRef.current = nextValue;
                                 setSubtitleScale(nextValue);
-                            }, children: _jsxs("strong", { children: ["\u5B57\u5E55\u5927\u5C0F ", subtitleScaleLabel] }) })] }), subtitleVisible && snapshot.currentSegment ? (_jsxs("div", { className: "asp-subtitleCard", children: [_jsx("strong", { className: "asp-subtitleJa", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) }), subtitleZhText ? _jsx("span", { className: "asp-subtitleZh", children: subtitleZhText }) : null] })) : null, playerError ? (_jsxs("div", { className: "asp-errorCard", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null] }) }));
+                            }, children: _jsxs("strong", { children: ["\u5B57\u5E55\u5927\u5C0F ", subtitleScaleLabel] }) })] }), shouldRenderSubtitleCard ? (_jsxs("div", { className: "asp-subtitleCard", children: [canRenderJapanese ? (_jsx("strong", { className: "asp-subtitleJa", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) })) : null, canRenderChinese ? _jsx("span", { className: "asp-subtitleZh", children: subtitleZhText }) : null] })) : null, playerError ? (_jsxs("div", { className: "asp-errorCard", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null] }) }));
 });
 //# sourceMappingURL=AnimeStudyPlayer.js.map

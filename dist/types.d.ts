@@ -42,6 +42,8 @@ export interface AnimeStudyPlayerProps {
     knowledgePoints: StudyKnowledgePoint[];
     showRomaji?: boolean;
     showSubtitleReading?: boolean;
+    showJapaneseSubtitle?: boolean;
+    showChineseSubtitle?: boolean;
     autoplay?: boolean;
     themeColor?: string;
     className?: string;

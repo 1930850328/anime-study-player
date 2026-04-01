@@ -192,7 +192,8 @@ function hasReadableChineseLine(text: string) {
   }
 
   const chineseCharCount = (normalized.match(/[\u4e00-\u9fff]/g) || []).length
-  return chineseCharCount >= 4
+  const slashCount = (normalized.match(/[\\/]/g) || []).length
+  return chineseCharCount >= 6 && slashCount <= 1
 }
 
 function buildSubtitleZhFallback(
@@ -203,26 +204,8 @@ function buildSubtitleZhFallback(
     return ''
   }
 
-  const wordHints = points
-    .filter((point) => point.kind !== 'grammar')
-    .slice(0, 3)
-    .map((point) => point.meaningZh)
-    .filter(Boolean)
-
-  const leadGrammar = points.find((point) => point.kind === 'grammar')
-  if (wordHints.length > 0 && leadGrammar) {
-    return `这句大意和“${wordHints.join('、')}”有关，其中 ${leadGrammar.expression} 表示“${leadGrammar.meaningZh}”。`
-  }
-
-  if (wordHints.length > 0) {
-    return `这句大意和“${wordHints.join('、')}”有关。`
-  }
-
-  if (leadGrammar) {
-    return `这句话里 ${leadGrammar.expression} 表示“${leadGrammar.meaningZh}”。`
-  }
-
-  return '先结合原句来理解这句话。'
+  void points
+  return ''
 }
 
 function formatTimeLabel(seconds: number) {
@@ -322,6 +305,8 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
       knowledgePoints,
       showRomaji = true,
       showSubtitleReading = false,
+      showJapaneseSubtitle = true,
+      showChineseSubtitle = true,
       autoplay = true,
       themeColor = '#ffc8af',
       className,
@@ -838,6 +823,10 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
       snapshot.currentSegment && hasReadableChineseLine(snapshot.currentSegment.zh)
         ? snapshot.currentSegment.zh
         : buildSubtitleZhFallback(snapshot.currentSegment, snapshot.activePoints)
+    const canRenderJapanese = showJapaneseSubtitle && Boolean(snapshot.currentSegment?.ja.trim())
+    const canRenderChinese = showChineseSubtitle && Boolean(subtitleZhText.trim())
+    const shouldRenderSubtitleCard =
+      subtitleVisible && snapshot.currentSegment && (canRenderJapanese || canRenderChinese)
 
     return (
       <div className={className ? `asp-shell ${className}` : 'asp-shell'} style={shellStyle}>
@@ -874,12 +863,14 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
             </button>
           </div>
 
-          {subtitleVisible && snapshot.currentSegment ? (
+          {shouldRenderSubtitleCard ? (
             <div className="asp-subtitleCard">
-              <strong className="asp-subtitleJa">
-                {renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints)}
-              </strong>
-              {subtitleZhText ? <span className="asp-subtitleZh">{subtitleZhText}</span> : null}
+              {canRenderJapanese ? (
+                <strong className="asp-subtitleJa">
+                  {renderHighlightedText(snapshot.currentSegment!.ja, snapshot.activePoints)}
+                </strong>
+              ) : null}
+              {canRenderChinese ? <span className="asp-subtitleZh">{subtitleZhText}</span> : null}
             </div>
           ) : null}
 
