@@ -1,4 +1,4 @@
-import 'xgplayer/dist/index.min.css'
+﻿import 'xgplayer/dist/index.min.css'
 
 import {
   forwardRef,
@@ -185,15 +185,43 @@ function renderHighlightedText(text: string, points: StudyKnowledgePoint[]): Rea
   return nodes
 }
 
-function hasReadableChineseLine(text: string) {
+function hasReadableChineseLine(japaneseText: string, text: string) {
   const normalized = text.trim()
-  if (!normalized || normalized.includes('暂未收录')) {
+  if (!normalized) {
     return false
   }
 
-  const chineseCharCount = (normalized.match(/[\u4e00-\u9fff]/g) || []).length
+  if (
+    /^\u8bf7\u7ed3\u5408\u8bed\u5883/u.test(normalized) ||
+    /^\u5148\u7ed3\u5408\u8bed\u5883/u.test(normalized) ||
+    /^\u9700\u8981\u7ed3\u5408(?:\u4e0a\u4e0b\u6587|\u8bed\u5883)/u.test(normalized) ||
+    /^\u8fd9\u53e5/u.test(normalized) ||
+    /^\u8fd9\u6bb5/u.test(normalized) ||
+    /^\u5927\u610f\u56f4\u7ed5/u.test(normalized)
+  ) {
+    return false
+  }
+
+  const chineseCharCount = (normalized.match(/[\u4e00-\u9fff]/gu) || []).length
+  const japaneseCharCount = (
+    japaneseText.match(
+      /[\p{Script=Hiragana}\p{Script=Katakana}\u3000-\u30ff\u3400-\u9fff]/gu,
+    ) || []
+  ).length
   const slashCount = (normalized.match(/[\\/]/g) || []).length
-  return chineseCharCount >= 6 && slashCount === 0
+  if (slashCount > 0 || chineseCharCount === 0) {
+    return false
+  }
+
+  if (chineseCharCount >= 5) {
+    return true
+  }
+
+  if (chineseCharCount >= 4 && /[。！？!?…]$/u.test(normalized)) {
+    return true
+  }
+
+  return chineseCharCount >= 3 && japaneseCharCount <= 4
 }
 
 function buildSubtitleZhFallback(
@@ -290,7 +318,7 @@ function createSnapshot(
 }
 
 function getSubtitleScaleLabel(value: number) {
-  return SUBTITLE_SCALE_OPTIONS.find((option) => option.value === value)?.label ?? '标准'
+  return SUBTITLE_SCALE_OPTIONS.find((option) => option.value === value)?.label ?? '鏍囧噯'
 }
 
 export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPlayerProps>(
@@ -436,8 +464,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
           mini: false,
           keyShortcut: true,
           miniprogress: true,
-          customDuration: clipDurationSec,
-          timeOffset: -startSec,
           playbackRate: [0.75, 1, 1.25, 1.5, 2],
           commonStyle: {
             progressColor: '#ffe2ad',
@@ -463,18 +489,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
         playerRef.current = player
         player.volume = snapshotRef.current.volume
         ;(player as XgPlayerInstance & { hasStart?: boolean }).hasStart = true
-        player.timeSegments = [
-          {
-            start: startSec,
-            end: endSec,
-            offset: startSec,
-            cTime: 0,
-            segDuration: clipDurationSec,
-            duration: clipDurationSec,
-          },
-        ]
-        player.offsetDuration = clipDurationSec
-        player.offsetCurrentTime = 0
 
         const media = player.media as HTMLVideoElement | null
         if (!media || typeof media.addEventListener !== 'function') {
@@ -484,9 +498,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
         const emitSnapshot = (patch?: Partial<StudyPlayerSnapshot>) => {
           const absoluteMs = Math.round(player.currentTime * 1000)
           const elapsedMs = Math.min(clipDurationMs, Math.max(0, absoluteMs - clipStartMs))
-
-          player.offsetDuration = clipDurationSec
-          player.offsetCurrentTime = elapsedMs / 1000
 
           const next = {
             ...createSnapshot(
@@ -545,7 +556,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
           const outsideSlice = player.currentTime < startSec || player.currentTime >= endSec
           if (fromBeginning || outsideSlice) {
             player.currentTime = startSec
-            player.offsetCurrentTime = 0
             finishedRef.current = false
             emitSnapshot({
               elapsedMs: 0,
@@ -590,8 +600,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
           }
 
           ;(player as XgPlayerInstance & { hasStart?: boolean }).hasStart = true
-          player.offsetDuration = clipDurationSec
-          player.offsetCurrentTime = 0
 
           emitSnapshot({
             elapsedMs: 0,
@@ -615,7 +623,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
 
           if (absoluteMs < clipStartMs - 80) {
             player.currentTime = startSec
-            player.offsetCurrentTime = 0
             emitSnapshot({
               elapsedMs: 0,
               absoluteMs: clipStartMs,
@@ -636,7 +643,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
 
           if (absoluteMs < clipStartMs) {
             player.currentTime = startSec
-            player.offsetCurrentTime = 0
             emitSnapshot({
               elapsedMs: 0,
               absoluteMs: clipStartMs,
@@ -646,7 +652,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
 
           if (absoluteMs > effectiveClipEndMs) {
             player.currentTime = Math.max(startSec, endSec - 0.001)
-            player.offsetCurrentTime = clipDurationSec
             emitSnapshot({
               elapsedMs: clipDurationMs,
               absoluteMs: effectiveClipEndMs,
@@ -790,7 +795,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
 
           finishedRef.current = false
           player.currentTime = clipStartMs / 1000
-          player.offsetCurrentTime = 0
           void player.play()
         },
         seekTo(nextElapsedMs: number) {
@@ -801,7 +805,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
 
           const clamped = Math.min(clipDurationMs, Math.max(0, nextElapsedMs))
           player.currentTime = (clipStartMs + clamped) / 1000
-          player.offsetCurrentTime = clamped / 1000
         },
         setVolume(nextVolume: number) {
           const player = playerRef.current
@@ -820,7 +823,8 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
 
     const subtitleScaleLabel = getSubtitleScaleLabel(subtitleScale)
     const subtitleZhText =
-      snapshot.currentSegment && hasReadableChineseLine(snapshot.currentSegment.zh)
+      snapshot.currentSegment &&
+      hasReadableChineseLine(snapshot.currentSegment.ja, snapshot.currentSegment.zh)
         ? snapshot.currentSegment.zh
         : buildSubtitleZhFallback(snapshot.currentSegment, snapshot.activePoints)
     const canRenderJapanese = showJapaneseSubtitle && Boolean(snapshot.currentSegment?.ja.trim())
@@ -843,7 +847,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
                 setSubtitleVisible(next)
               }}
             >
-              <strong>{subtitleVisible ? '隐藏字幕' : '显示字幕'}</strong>
+              <strong>{subtitleVisible ? '闅愯棌瀛楀箷' : '鏄剧ず瀛楀箷'}</strong>
             </button>
 
             <button
@@ -859,7 +863,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
                 setSubtitleScale(nextValue)
               }}
             >
-              <strong>字幕大小 {subtitleScaleLabel}</strong>
+              <strong>瀛楀箷澶у皬 {subtitleScaleLabel}</strong>
             </button>
           </div>
 
@@ -876,7 +880,7 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
 
           {playerError ? (
             <div className="asp-errorCard">
-              <strong>视频暂时无法播放</strong>
+              <strong>瑙嗛鏆傛椂鏃犳硶鎾斁</strong>
               <span>{playerError}</span>
             </div>
           ) : null}
@@ -885,3 +889,6 @@ export const AnimeStudyPlayer = forwardRef<AnimeStudyPlayerHandle, AnimeStudyPla
     )
   },
 )
+
+
+

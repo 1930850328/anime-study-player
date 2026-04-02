@@ -131,14 +131,32 @@ function renderHighlightedText(text, points) {
     }
     return nodes;
 }
-function hasReadableChineseLine(text) {
+function hasReadableChineseLine(japaneseText, text) {
     const normalized = text.trim();
-    if (!normalized || normalized.includes('暂未收录')) {
+    if (!normalized) {
         return false;
     }
-    const chineseCharCount = (normalized.match(/[\u4e00-\u9fff]/g) || []).length;
+    if (/^\u8bf7\u7ed3\u5408\u8bed\u5883/u.test(normalized) ||
+        /^\u5148\u7ed3\u5408\u8bed\u5883/u.test(normalized) ||
+        /^\u9700\u8981\u7ed3\u5408(?:\u4e0a\u4e0b\u6587|\u8bed\u5883)/u.test(normalized) ||
+        /^\u8fd9\u53e5/u.test(normalized) ||
+        /^\u8fd9\u6bb5/u.test(normalized) ||
+        /^\u5927\u610f\u56f4\u7ed5/u.test(normalized)) {
+        return false;
+    }
+    const chineseCharCount = (normalized.match(/[\u4e00-\u9fff]/gu) || []).length;
+    const japaneseCharCount = (japaneseText.match(/[\p{Script=Hiragana}\p{Script=Katakana}\u3000-\u30ff\u3400-\u9fff]/gu) || []).length;
     const slashCount = (normalized.match(/[\\/]/g) || []).length;
-    return chineseCharCount >= 6 && slashCount <= 1;
+    if (slashCount > 0 || chineseCharCount === 0) {
+        return false;
+    }
+    if (chineseCharCount >= 5) {
+        return true;
+    }
+    if (chineseCharCount >= 4 && /[。！？!?…]$/u.test(normalized)) {
+        return true;
+    }
+    return chineseCharCount >= 3 && japaneseCharCount <= 4;
 }
 function buildSubtitleZhFallback(segment, points) {
     if (!segment) {
@@ -206,7 +224,7 @@ function createSnapshot(elapsedMs, absoluteMs, durationMs, isReady, isPlaying, i
     };
 }
 function getSubtitleScaleLabel(value) {
-    return SUBTITLE_SCALE_OPTIONS.find((option) => option.value === value)?.label ?? '标准';
+    return SUBTITLE_SCALE_OPTIONS.find((option) => option.value === value)?.label ?? '鏍囧噯';
 }
 export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, poster, durationMs, clipStartMs = 0, clipEndMs, segments, knowledgePoints, showRomaji = true, showSubtitleReading = false, showJapaneseSubtitle = true, showChineseSubtitle = true, autoplay = true, themeColor = '#ffc8af', className, onFinish, onError, onReady, onStateChange, }, ref) {
     void showRomaji;
@@ -295,8 +313,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 mini: false,
                 keyShortcut: true,
                 miniprogress: true,
-                customDuration: clipDurationSec,
-                timeOffset: -startSec,
                 playbackRate: [0.75, 1, 1.25, 1.5, 2],
                 commonStyle: {
                     progressColor: '#ffe2ad',
@@ -321,18 +337,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             playerRef.current = player;
             player.volume = snapshotRef.current.volume;
             player.hasStart = true;
-            player.timeSegments = [
-                {
-                    start: startSec,
-                    end: endSec,
-                    offset: startSec,
-                    cTime: 0,
-                    segDuration: clipDurationSec,
-                    duration: clipDurationSec,
-                },
-            ];
-            player.offsetDuration = clipDurationSec;
-            player.offsetCurrentTime = 0;
             const media = player.media;
             if (!media || typeof media.addEventListener !== 'function') {
                 throw new Error('播放器视频内核初始化失败。');
@@ -340,8 +344,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             const emitSnapshot = (patch) => {
                 const absoluteMs = Math.round(player.currentTime * 1000);
                 const elapsedMs = Math.min(clipDurationMs, Math.max(0, absoluteMs - clipStartMs));
-                player.offsetDuration = clipDurationSec;
-                player.offsetCurrentTime = elapsedMs / 1000;
                 const next = {
                     ...createSnapshot(elapsedMs, absoluteMs, clipDurationMs, snapshotRef.current.isReady || media.readyState >= 2, !media.paused && !media.ended, snapshotRef.current.isBuffering, snapshotRef.current.isAutoplayBlocked, player.volume, segments, knowledgePoints),
                     ...patch,
@@ -380,7 +382,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 const outsideSlice = player.currentTime < startSec || player.currentTime >= endSec;
                 if (fromBeginning || outsideSlice) {
                     player.currentTime = startSec;
-                    player.offsetCurrentTime = 0;
                     finishedRef.current = false;
                     emitSnapshot({
                         elapsedMs: 0,
@@ -421,8 +422,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 }
                 ;
                 player.hasStart = true;
-                player.offsetDuration = clipDurationSec;
-                player.offsetCurrentTime = 0;
                 emitSnapshot({
                     elapsedMs: 0,
                     absoluteMs: clipStartMs,
@@ -442,7 +441,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 const absoluteMs = Math.round(player.currentTime * 1000);
                 if (absoluteMs < clipStartMs - 80) {
                     player.currentTime = startSec;
-                    player.offsetCurrentTime = 0;
                     emitSnapshot({
                         elapsedMs: 0,
                         absoluteMs: clipStartMs,
@@ -459,7 +457,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 const absoluteMs = Math.round(player.currentTime * 1000);
                 if (absoluteMs < clipStartMs) {
                     player.currentTime = startSec;
-                    player.offsetCurrentTime = 0;
                     emitSnapshot({
                         elapsedMs: 0,
                         absoluteMs: clipStartMs,
@@ -468,7 +465,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                 }
                 if (absoluteMs > effectiveClipEndMs) {
                     player.currentTime = Math.max(startSec, endSec - 0.001);
-                    player.offsetCurrentTime = clipDurationSec;
                     emitSnapshot({
                         elapsedMs: clipDurationMs,
                         absoluteMs: effectiveClipEndMs,
@@ -596,7 +592,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             }
             finishedRef.current = false;
             player.currentTime = clipStartMs / 1000;
-            player.offsetCurrentTime = 0;
             void player.play();
         },
         seekTo(nextElapsedMs) {
@@ -606,7 +601,6 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
             }
             const clamped = Math.min(clipDurationMs, Math.max(0, nextElapsedMs));
             player.currentTime = (clipStartMs + clamped) / 1000;
-            player.offsetCurrentTime = clamped / 1000;
         },
         setVolume(nextVolume) {
             const player = playerRef.current;
@@ -620,7 +614,8 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
         },
     }), [clipDurationMs, clipStartMs]);
     const subtitleScaleLabel = getSubtitleScaleLabel(subtitleScale);
-    const subtitleZhText = snapshot.currentSegment && hasReadableChineseLine(snapshot.currentSegment.zh)
+    const subtitleZhText = snapshot.currentSegment &&
+        hasReadableChineseLine(snapshot.currentSegment.ja, snapshot.currentSegment.zh)
         ? snapshot.currentSegment.zh
         : buildSubtitleZhFallback(snapshot.currentSegment, snapshot.activePoints);
     const canRenderJapanese = showJapaneseSubtitle && Boolean(snapshot.currentSegment?.ja.trim());
@@ -630,12 +625,12 @@ export const AnimeStudyPlayer = forwardRef(function AnimeStudyPlayer({ url, post
                                 const next = !subtitleVisibleRef.current;
                                 subtitleVisibleRef.current = next;
                                 setSubtitleVisible(next);
-                            }, children: _jsx("strong", { children: subtitleVisible ? '隐藏字幕' : '显示字幕' }) }), _jsx("button", { type: "button", className: "asp-toolButton", onClick: () => {
+                            }, children: _jsx("strong", { children: subtitleVisible ? '闅愯棌瀛楀箷' : '鏄剧ず瀛楀箷' }) }), _jsx("button", { type: "button", className: "asp-toolButton", onClick: () => {
                                 const currentIndex = SUBTITLE_SCALE_OPTIONS.findIndex((option) => option.value === subtitleScaleRef.current);
                                 const nextIndex = (currentIndex + 1) % SUBTITLE_SCALE_OPTIONS.length;
                                 const nextValue = SUBTITLE_SCALE_OPTIONS[nextIndex].value;
                                 subtitleScaleRef.current = nextValue;
                                 setSubtitleScale(nextValue);
-                            }, children: _jsxs("strong", { children: ["\u5B57\u5E55\u5927\u5C0F ", subtitleScaleLabel] }) })] }), shouldRenderSubtitleCard ? (_jsxs("div", { className: "asp-subtitleCard", children: [canRenderJapanese ? (_jsx("strong", { className: "asp-subtitleJa", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) })) : null, canRenderChinese ? _jsx("span", { className: "asp-subtitleZh", children: subtitleZhText }) : null] })) : null, playerError ? (_jsxs("div", { className: "asp-errorCard", children: [_jsx("strong", { children: "\u89C6\u9891\u6682\u65F6\u65E0\u6CD5\u64AD\u653E" }), _jsx("span", { children: playerError })] })) : null] }) }));
+                            }, children: _jsxs("strong", { children: ["\u701B\u6940\u7BB7\u6FB6\u0443\u76AC ", subtitleScaleLabel] }) })] }), shouldRenderSubtitleCard ? (_jsxs("div", { className: "asp-subtitleCard", children: [canRenderJapanese ? (_jsx("strong", { className: "asp-subtitleJa", children: renderHighlightedText(snapshot.currentSegment.ja, snapshot.activePoints) })) : null, canRenderChinese ? _jsx("span", { className: "asp-subtitleZh", children: subtitleZhText }) : null] })) : null, playerError ? (_jsxs("div", { className: "asp-errorCard", children: [_jsx("strong", { children: "\u7459\u55DB\uE576\u93C6\u509B\u6902\u93C3\u72B3\u7876\u93BE\uE15F\u6581" }), _jsx("span", { children: playerError })] })) : null] }) }));
 });
 //# sourceMappingURL=AnimeStudyPlayer.js.map
